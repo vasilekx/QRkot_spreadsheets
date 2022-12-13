@@ -33,7 +33,10 @@ class CRUDCharityProject(CRUDBase):
                 CharityProject.fully_invested
             )
         )
-        return projects.scalars().all()
+        return sorted(
+            projects.scalars().all(),
+            key=lambda obj: obj.close_date - obj.create_date
+        )
 
 
 charity_project_crud = CRUDCharityProject(CharityProject)

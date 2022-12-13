@@ -1,4 +1,5 @@
 # app/services/google_api.py
+from copy import deepcopy
 from datetime import datetime
 from typing import List
 
@@ -8,35 +9,46 @@ from app.core.config import settings
 from app.models import CharityProject
 
 FORMAT = "%Y/%m/%d %H:%M:%S"
-TIME_DIFFERENCE_FORMAT = (
-    '{days} {postfix}, {hour}:{minute:02d}:{second:02d}.{microsecond}'
+ROW_COUNT = 100
+COLUMN_COUNT = 100
+SPREADSHEET_TITLE = 'Отчет на {date}'
+SPREADSHEET_BODY = dict(
+    properties=dict(
+        title=SPREADSHEET_TITLE.format(date=datetime.now().strftime(FORMAT)),
+        locale='ru_RU',
+    ),
+    sheets=[dict(properties=dict(
+        sheetType='GRID',
+        sheetId=0,
+        title='Лист1',
+        gridProperties=dict(
+            rowCount=ROW_COUNT,
+            columnCount=COLUMN_COUNT,
+        )
+    ))]
 )
+TABLE_HEADER = [
+    ['Отчет от', datetime.now().strftime(FORMAT)],
+    ['Количество по скорости закрытия'],
+    ['Название проекта', 'Время сбора', 'Описание']
+]
 
 
-async def spreadsheets_create(wrapper_services: Aiogoogle) -> str:
+async def spreadsheets_create(
+        wrapper_services: Aiogoogle,
+        spreadsheet_body=None
+) -> str:
+    if spreadsheet_body is None:
+        spreadsheet_body = deepcopy(SPREADSHEET_BODY)
+        spreadsheet_body['properties']['title'] = SPREADSHEET_TITLE.format(
+            date=datetime.now().strftime(FORMAT)
+        )
     service = await wrapper_services.discover('sheets', 'v4')
-    spreadsheet_body = {
-        'properties': {
-            'title': f'Отчет на {datetime.now().strftime(FORMAT)}',
-            'locale': 'ru_RU'
-        },
-        'sheets': [{
-            'properties': {
-                'sheetType': 'GRID',
-                'sheetId': 0,
-                'title': 'Лист1',
-                'gridProperties': {
-                    'rowCount': 100,
-                    'columnCount': 100
-                }
-            }
-        }]
-    }
     response = await wrapper_services.as_service_account(
         service.spreadsheets.create(json=spreadsheet_body)
     )
-    spreadsheetid = response['spreadsheetId']
-    return spreadsheetid
+    spreadsheet_id = response['spreadsheetId']
+    return spreadsheet_id
 
 
 async def set_user_permissions(
@@ -64,30 +76,22 @@ async def spreadsheets_update_value(
         wrapper_services: Aiogoogle
 ) -> None:
     service = await wrapper_services.discover('sheets', 'v4')
+    table_header = deepcopy(TABLE_HEADER)
+    table_header[0][1] = datetime.now().strftime(FORMAT)
     table_values = [
-        ['Отчет от', datetime.now().strftime(FORMAT)],
-        ['Количество по скорости закрытия'],
-        ['Название проекта', 'Время сбора', 'Описание']
+        *table_header,
+        *[list(map(str, [
+            attr.name, attr.close_date - attr.create_date, attr.description
+        ])) for attr in projects],
     ]
-    for project in projects:
-        time_difference = project.close_date - project.create_date
-        days = time_difference.days
-        hours, remainder = divmod(time_difference.seconds, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        plural_postfix = 'day' if days <= 1 else 'days'
-        new_project = [
-            project.name,
-            TIME_DIFFERENCE_FORMAT.format(
-                days=days,
-                postfix=plural_postfix,
-                hour=hours,
-                minute=minutes,
-                second=seconds,
-                microsecond=time_difference.microseconds
-            ),
-            project.description
-        ]
-        table_values.append(new_project)
+    rows = len(table_values)
+    cols = max(map(len, table_values))
+    if rows > ROW_COUNT or cols > COLUMN_COUNT:
+        raise ValueError(
+            f'Превышены габариты таблицы. '
+            f'Сформированно строк {rows}. Допустимо {ROW_COUNT}. '
+            f'Сформированно столбцов {cols}. Допустимо {COLUMN_COUNT}. '
+        )
     update_body = {
         'majorDimension': 'ROWS',
         'values': table_values
@@ -95,7 +99,7 @@ async def spreadsheets_update_value(
     await wrapper_services.as_service_account(
         service.spreadsheets.values.update(
             spreadsheetId=spreadsheetid,
-            range='A1:E30',
+            range=f'R1C1:R{rows}C{cols}',
             valueInputOption='USER_ENTERED',
             json=update_body
         )
