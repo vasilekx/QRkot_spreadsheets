@@ -30,7 +30,7 @@ class CRUDCharityProject(CRUDBase):
     ) -> List[CharityProject]:
         projects = await session.execute(
             select(CharityProject).where(
-                CharityProject.fully_invested == True
+                CharityProject.fully_invested
             )
         )
         return projects.scalars().all()

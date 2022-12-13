@@ -31,7 +31,10 @@ async def get_report(
     projects = await charity_project_crud.get_projects_by_completion_rate(
         session
     )
-    projects = sorted(projects, key=lambda obj: obj.close_date-obj.create_date)
+    projects = sorted(
+        projects,
+        key=lambda obj: obj.close_date - obj.create_date
+    )
     spreadsheetid = await spreadsheets_create(wrapper_services)
     await set_user_permissions(spreadsheetid, wrapper_services)
     await spreadsheets_update_value(
