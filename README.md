@@ -14,6 +14,7 @@
 [![Pydantic](https://img.shields.io/badge/Pydantic-1.9.1-blue?style=flat-square&logoColor=3776AB&labelColor=d0d0d0)](https://pydantic-docs.helpmanual.io)
 [![Alembic](https://img.shields.io/badge/Alembic-1.7.7-blue?style=flat-square&logoColor=3776AB&labelColor=d0d0d0)](https://alembic.sqlalchemy.org/)
 [![Uvicorn](https://img.shields.io/badge/Uvicorn-0.17.6-blue?style=flat-square&logoColor=3776AB&labelColor=d0d0d0)](https://www.uvicorn.org)
+[![Google API Client](https://img.shields.io/badge/Google_API-2.0-blue?style=flat-square&logoColor=3776AB&labelColor=d0d0d0)](https://github.com/googleapis/google-api-python-client/)
 
 ---
 
